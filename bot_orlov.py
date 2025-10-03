@@ -311,7 +311,7 @@ async def router(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if sarcasm_on() and context.chat_data["wrong_streak"] >= MAX_WRONG_STREAK:
         reply += random.choice([
-            "\nЗапишу в личное дело: «креативный ввод без результата».",
+            "\nЗапишу в личное дело: «решал дела методом тыка».",
             "\nСовет дня: иногда инструкция — друг, а не враг.",
             "\nПопробуй ещё раз. На этот раз — без фристайла."
         ])
@@ -336,4 +336,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
