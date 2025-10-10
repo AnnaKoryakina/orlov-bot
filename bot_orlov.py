@@ -279,15 +279,16 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ========= MAIN =========
 def main():
-    token = os.environ.get("BOT_TOKEN")
+    token = os.environ.get("8302376134:AAFlhYhpEe4tqfrlQvmLhdBK6ryJyCnWrYw")
     if not token:
         raise RuntimeError("Установи переменную окружения BOT_TOKEN с токеном Telegram-бота.")
     app = ApplicationBuilder().token(token).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("center_ok", center_ok_cmd))  # служебная
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-    print("Бот Орлов запущен (RU, без подсказок, с подстёбами).")
+    print("Привет, агент")
     app.run_polling(close_loop=False)
 
 if __name__ == "__main__":
     main()
+
