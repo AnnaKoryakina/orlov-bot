@@ -249,15 +249,20 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ---------- MAIN: polling локально / webhook для Railway ----------
 def main():
-    token = os.environ.get("8302376134:AAFlhYhpEe4tqfrlQvmLhdBK6ryJyCnWrYw")
+    # Получаем токен из переменных окружения
+    token = os.environ.get("BOT_TOKEN")
     if not token:
         raise RuntimeError("Укажи BOT_TOKEN в переменных окружения.")
+
+    # Инициализация приложения Telegram
     app = ApplicationBuilder().token(token).build()
 
+    # Регистрируем обработчики
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("center_ok", center_ok_cmd))  # служебная
+    app.add_handler(CommandHandler("center_ok", center_ok_cmd))  # служебная команда
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
+    # Проверяем, есть ли адрес webhook
     base = os.getenv("WEBHOOK_BASE", "").strip().rstrip("/")
     if base:
         path = f"/{token}"
@@ -271,8 +276,9 @@ def main():
             drop_pending_updates=True,
         )
     else:
-        log.info("Starting polling")
+        log.info("Starting polling (no WEBHOOK_BASE set)")
         app.run_polling(drop_pending_updates=True, close_loop=False)
+
 
 if __name__ == "__main__":
     main()
