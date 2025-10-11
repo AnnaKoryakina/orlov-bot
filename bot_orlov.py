@@ -326,7 +326,7 @@ def main():
     aio["application"] = app
 
     # Telegram webhook
-    aio.router.add_post(f"/{token}", app.webhook_handler())
+    aio.router.add_post(f"/{token}", app.telegram_webhook_handler())
 
     # Служебный маршрут
     aio.router.add_post("/center_mark", center_mark_handler)
@@ -340,3 +340,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
