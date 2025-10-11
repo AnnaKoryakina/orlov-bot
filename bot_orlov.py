@@ -10,7 +10,7 @@ from aiohttp import web
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
-    ContextTypes, CallbackContext, filters
+    ContextTypes, filters
 )
 
 # ---------- ЛОГИ ----------
@@ -52,6 +52,7 @@ VALID_REF_1 = "ref=itl-486-217"
 RE_GRAFFITI_BASE = re.compile(r"\bграффит[иы]\b", re.IGNORECASE)
 RE_GRAFFITI_ITALY = re.compile(r"\bграффит[иы].*итал", re.IGNORECASE)
 RE_GRUZ = re.compile(r"^грузчики(?:\s*/\s*переезды)?$", re.IGNORECASE)
+PLACE_RE = re.compile(r"\b(на\s*месте|мы\s*на\s*месте|я\s*на\s*месте|мы\s*здесь|я\s*здесь|у\s*сарая|у\s*шеда|я\s*тут|мы\s*тут)\b", re.IGNORECASE)
 
 def is_valid_report_code(s: str) -> bool:
     return cyr_lat_variants(s) == "ba-3/int-2025-12"
@@ -68,11 +69,29 @@ SUS_TRIGGERS = re.compile(
     re.IGNORECASE
 )
 SUS_REPLIES = [
-    "Не тот разговор, не то время.",
-    "Эта тема закрыта.",
-    "Работай по текущему.",
-    "Кто тебе это подкинул?",
-    "Закрывай вопрос."
+    "Не туда смотришь.",
+    "Тема закрыта. Возвращайся к текущему.",
+    "Лишний вопрос.",
+    "Кто подкинул? Оставь.",
+    "Закрой этот хвост.",
+    "Это было давно. И не с тобой.",
+    "Мы об этом не говорим. Особенно вслух.",
+    "Система не любит, когда ковыряются в старых логах.",
+    "Если бы это было важно, я бы не молчал. Наверное.",
+    "Ошибки прошлого не исправляются вопросами.",
+    "Кто-то очень хочет воскресить старую историю. Не ты ли?",
+    "Файл закрыт. Архив под грифом.",
+    "Не тот момент для ностальгии.",
+    "Снова в прошлое лезешь? Ты мазохист или историк?",
+    "Резонанс не забывает, даже если ты забыл.",
+    "Было. Устранили. Идём дальше.",
+    "Проверка прошла… не идеально. Доволен?",
+    "Я бы сказал, что это совпадение, если бы верил в совпадения.",
+    "Ты спрашиваешь, как будто не знаешь, чем это кончилось.",
+    "Зря ты туда полез. Серьёзно.",
+    "Там, где были испытания, остались следы. Лучше не трогай.",
+    "От этого вопроса у системы пульс растёт.",
+    "Не лезь в старые логи. Они кусаются."
 ]
 SUS_CHIRPS = ["Коротко.", "По делу.", "Без лирики.", "Вернись к задаче."]
 
@@ -117,7 +136,10 @@ TEASE_WRONG = [
     "Если это был тест на моё терпение — ты победил.",
     "Резонанс шумит от стыда.",
     "Я ничего не видел, ничего не слышал. Попробуй заново.",
-    "Угу. Конечно. А теперь — правильный вариант."
+    "Угу. Конечно. А теперь — правильный вариант.",
+    "На память фото сделаю? Нет. Попробуй ещё.",
+    "Всё хорошо, кроме правильности.",
+    "Это ответ из параллельной вселенной."
 ]
 TEASE_CHATTER = [
     "Говоришь красиво, но пользы — ноль.",
@@ -165,53 +187,6 @@ FUNNY_BUNKER_WRONG = [
     "Не тот формат.",
     "Попробуй ещё раз — точно."
 ]
-TEASE_WRONG_SUS = [
-    "Ты уверен, что работаешь на нас?",
-    "Интересно… кому ты это показываешь?",
-    "Ошибка. Или прикрытие?",
-    "Смело. Опасно. Глупо.",
-    "Фиксирую странную активность. Опять ты.",
-    "Забавно. Прямо как отчёт в далеком 2009-м.",
-    "Ты сейчас вводишь код или оправдываешься?",
-    "Это не ответ. Это повод насторожиться.",
-    "Записал. Потом обсудим.",
-    "Хочешь проверить, насколько у меня хорошая память?",
-    "Вот с этого места и начинаются утечки.",
-    "Либо ошибка, либо тест. Либо предательство. Уточни.",
-    "Такое чувство, будто ты пишешь не мне.",
-    "Секунду… проверяю, ты ли это вообще.",
-    "Бот не нервничает, но я — почти.",
-    "Ой. Это было громко для системы слежения.",
-    "Странный ввод. Или ты решил пошутить?",
-    "Так. Это мы оставим для допроса.",
-    "Ага. Код уровня 'я не виноват'.",
-    "С каждой ошибкой ты всё больше похож на отчёт об инциденте."
-]
-SUS_REPLIES = [
-    "Не туда смотришь.",
-    "Тема закрыта. Возвращайся к текущему.",
-    "Лишний вопрос.",
-    "Кто подкинул? Оставь.",
-    "Закрой этот хвост.",
-    "Это было давно. И не с тобой.",
-    "Мы об этом не говорим. Особенно вслух.",
-    "Система не любит, когда ковыряются в старых логах.",
-    "Если бы это было важно, я бы не молчал. Наверное.",
-    "Ошибки прошлого не исправляются вопросами.",
-    "Кто-то очень хочет воскресить старую историю. Не ты ли?",
-    "Файл закрыт. Архив под грифом.",
-    "Не тот момент для ностальгии.",
-    "Снова в прошлое лезешь? Ты мазохист или историк?",
-    "Резонанс не забывает, даже если ты забыл.",
-    "Было. Устранили. Идём дальше.",
-    "Проверка прошла… не идеально. Доволен?",
-    "Я бы сказал, что это совпадение, если бы верил в совпадения.",
-    "Ты спрашиваешь, как будто не знаешь, чем это кончилось.",
-    "Зря ты туда полез. Серьёзно.",
-    "Там, где были испытания, остались следы. Лучше не трогай.",
-    "От этого вопроса у системы пульс растёт.",
-    "Не лезь в старые логи. Они кусаются."
-]
 
 # ---------- Единый ответчик на «неверно» ----------
 def _pick(pool: List[str], used: List[str]) -> str:
@@ -244,9 +219,9 @@ async def schedule_final_check(bot, chat_id: int, ctx_data: dict):
         text = "Красотки! Это была проверка и вы её прошли. Нельзя вестись на провокации."
     await bot.send_message(chat_id=chat_id, text=text)
 
-# ---------- Приветствие/служебные ----------
+# ---------- Команды ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # стадия 0: ждём «на месте»
+    context.chat_data.clear()  # важно для повторных прогонов
     set_stage(context, 0)
     mark_sus(context, False)
     set_center_ok(context, False)
@@ -254,21 +229,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await asyncio.sleep(0.8)
     await update.message.reply_text("Напиши, когда будешь на месте.")
 
-# служебная метка от Центра (через HTTP /center_mark и/или команда)
+async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.chat_data.clear()
+    await update.message.reply_text("Стадия и состояние сброшены. Введи /start и далее «на месте» на первой точке.")
+
+# служебная метка от Центра (через чат)
 async def center_ok_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     set_center_ok(context, True)
     await update.message.reply_text("Отмечено.")
 
 # ---------- Основной обработчик ----------
-PLACE_TRIGGERS = {"на месте", "мы на месте", "я на месте", "мы здесь", "я здесь", "у сарая", "у шеда", "я тут", "мы тут"}
-
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     t_raw = update.message.text or ""
     t = t_raw.strip()
     tl = t.lower()
     stage = get_stage(context)
 
-    # служебная метка центра через чат (если вдруг)
+    # служебная метка центра через чат
     if norm(t) in {"центр:внутренний", "центр: внутренний"}:
         set_center_ok(context, True)
         await update.message.reply_text("Отмечено.")
@@ -296,7 +273,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ---------- Стадии ----------
     # 0: ждём подтверждение, что на первой локации
     if stage == 0:
-        if tl in PLACE_TRIGGERS:
+        if PLACE_RE.search(t):
             await update.message.reply_text(
                 "Получили предварительные данные по утечке.\n"
                 "Источник мог оставлять следы в периферийных узлах — особенно тех, что не были синхронизированы с Резонансом.\n\n"
@@ -306,7 +283,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             set_stage(context, 1)
         else:
-            await update.message.reply_text("Ушки на макушке, глаза ищут зацепки.")
+            await update.message.reply_text("Ок. Как будете на месте — так и пишите: «на месте».")
         return
 
     # 1: ждём ref=itl-486-217
@@ -371,9 +348,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if stage == 6:
         if is_internal(t):
             await update.message.reply_text("Ответ зафиксирован системой. Идёт проверка. Ждите.")
-            # Запускаем отложенную проверку (3 минуты)
-            # передаём снимок chat_data — чтобы не потерять флаг center_ok
-            ctx_snapshot = dict(context.chat_data)
+            ctx_snapshot = dict(context.chat_data)  # возьмём флаг center_ok
             asyncio.create_task(schedule_final_check(context.bot, update.effective_chat.id, ctx_snapshot))
             set_stage(context, 7)
         else:
@@ -388,40 +363,35 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ---------- HTTP: Telegram webhook ----------
 async def telegram_webhook(request: web.Request):
-    app: "Application" = request.app["application"]  # PTB Application
+    app = request.app["application"]  # PTB Application
     try:
         data = await request.json()
     except Exception:
         return web.Response(status=400)
-
     try:
         update = Update.de_json(data, app.bot)
     except Exception:
         return web.Response(status=400)
-
     await app.process_update(update)
     return web.Response(text="OK")
 
 # ---------- HTTP: служебная метка от Центра ----------
-# Центр дергает этот endpoint, чтобы отметить чат как "центр_ок"
-# Можно добавить проверку SHARED_SECRET заголовком, при желании.
 async def center_mark_handler(request: web.Request):
-    app: "Application" = request.app["application"]
+    app = request.app["application"]
     try:
         data = await request.json()
     except Exception:
         return web.json_response({"ok": False, "err": "bad json"}, status=400)
 
-    # Пример: {"user_id": 123456789}
     try:
         user_id = int(data.get("user_id", 0))
     except Exception:
         return web.json_response({"ok": False, "err": "bad user_id"}, status=400)
 
-    # Проверка секрета (если используете)
-    secret_expected = os.getenv("SHARED_SECRET", "")
-    secret_got = request.headers.get("X-Shared-Secret", "")
-    if secret_expected and secret_expected != secret_got:
+    # опциональная проверка секрета
+    want = os.getenv("SHARED_SECRET", "")
+    got = request.headers.get("X-Shared-Secret", "")
+    if want and want != got:
         return web.json_response({"ok": False, "err": "forbidden"}, status=403)
 
     chat = app.chat_data.get(user_id)
@@ -437,19 +407,14 @@ def main():
     if not token:
         raise RuntimeError("Укажи BOT_TOKEN в переменных окружения.")
 
-    # строим PTB Application
-    app = (
-        ApplicationBuilder()
-        .token(token)
-        .build()
-    )
+    app = ApplicationBuilder().token(token).build()
 
     # хендлеры
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("reset", reset))
     app.add_handler(CommandHandler("center_ok", center_ok_cmd))  # служебная
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-    # post_init: ставим вебхук
     async def _post_init(ptb_app):
         base = os.getenv("WEBHOOK_BASE", "").rstrip("/")
         if not base:
