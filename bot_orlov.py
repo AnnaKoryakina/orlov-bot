@@ -385,9 +385,10 @@ aio.on_startup.append(_on_startup)
 aio.on_cleanup.append(_on_cleanup)
 
     # Запуск aiohttp-сервера
-    web.run_app(aio, host="0.0.0.0", port=int(os.getenv("PORT", "8080")))
+web.run_app(aio, host="0.0.0.0", port=int(os.getenv("PORT", "8080")))
 
 
 if __name__ == "__main__":
     main()
+
 
