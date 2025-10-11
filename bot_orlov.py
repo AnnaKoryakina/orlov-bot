@@ -330,13 +330,51 @@ async def telegram_webhook(request: web.Request):
     await app.process_update(update)
     return web.Response(text="OK")
 
+async def _post_init(app):
+    base = os.getenv("WEBHOOK_BASE", "").rstrip("/")
+    token = app.bot.token
+    url = f"{base}/{token}"
+    # сбрасываем старый и устанавливаем новый вебхук
+    await app.bot.delete_webhook(drop_pending_updates=True)
+    await app.bot.set_webhook(url, allowed_updates=["message"])
+    logging.getLogger("orlov").info(f"Webhook set to {url}")
+
 def main():
     token = os.environ.get("BOT_TOKEN")
     if not token:
         raise RuntimeError("BOT_TOKEN не задан.")
 
-    app = ApplicationBuilder().token(token).build()
+    # ⬇️ Здесь добавляем post_init в ApplicationBuilder
+    app = (
+        ApplicationBuilder()
+        .token(token)
+        .post_init(_post_init)
+        .build()
+    )
 
+    # дальше как было
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))async def _post_init(app):
+    base = os.getenv("WEBHOOK_BASE", "").rstrip("/")
+    token = app.bot.token
+    url = f"{base}/{token}"
+    # сбрасываем старый и устанавливаем новый вебхук
+    await app.bot.delete_webhook(drop_pending_updates=True)
+    await app.bot.set_webhook(url, allowed_updates=["message"])
+    logging.getLogger("orlov").info(f"Webhook set to {url}")
+
+def main():
+    token = os.environ.get("BOT_TOKEN")
+    if not token:
+        raise RuntimeError("BOT_TOKEN не задан.")
+
+    # ⬇️ Здесь добавляем post_init в ApplicationBuilder
+    app = (
+        ApplicationBuilder()
+        .token(token)
+        .post_init(_post_init)
+        .build()
+    )
     # твои хендлеры
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
@@ -356,3 +394,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
