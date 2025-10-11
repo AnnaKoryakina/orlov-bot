@@ -352,20 +352,17 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await reply_wrong(update, context, FUNNY_BUNKER_WRONG, TEASE_WRONG)
         return
 
-    # 6: финальный ответ «внутренний»
+        # 6: финальный ответ «внутренний»
     if stage == 6:
         if is_internal(t):
             await update.message.reply_text("Ответ зафиксирован системой. Идёт проверка. Ждите.")
-            # было:
-# ctx_snapshot = dict(context.chat_data)
-# asyncio.create_task(schedule_final_check(context.bot, update.effective_chat.id, ctx_snapshot))
 
-# стало:
-context.application.job_queue.run_once(
-    final_check_job,
-    when=FINAL_DELAY,
-    data={"chat_id": update.effective_chat.id}
-)
+            context.application.job_queue.run_once(
+                final_check_job,
+                when=FINAL_DELAY,
+                data={"chat_id": update.effective_chat.id}
+            )
+
             set_stage(context, 7)
         else:
             await reply_wrong(update, context, TEASE_WRONG, TEASE_CHATTER)
@@ -471,4 +468,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
