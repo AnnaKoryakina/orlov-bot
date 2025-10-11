@@ -291,41 +291,52 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("На связи.")
 
-# ===== AIOHTTP HANDLER (приём от Центра) =====
+# --- AIOHTTP запуск на PTB 21 ---
+from aiohttp import web
+
 async def center_mark_handler(request):
     app = request.app["application"]
-    data = await request.json()
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"ok": False}, status=400)
+
     if data.get("secret") != os.getenv("SHARED_SECRET"):
         return web.json_response({"ok": False}, status=403)
-    user_id = int(data.get("user_id", 0))
-    if not user_id:
+
+    try:
+        user_id = int(data.get("user_id", 0))
+    except Exception:
         return web.json_response({"ok": False}, status=400)
+
     app.bot_data.setdefault("center_ok_users", set()).add(user_id)
     return web.json_response({"ok": True})
 
-# ===== MAIN =====
 def main():
     token = os.environ.get("BOT_TOKEN")
-    if not token: raise RuntimeError("BOT_TOKEN не задан.")
+    if not token:
+        raise RuntimeError("BOT_TOKEN не задан.")
     app = ApplicationBuilder().token(token).build()
 
+    # Хендлеры бота
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("center_ok", center_ok_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-    base = os.getenv("WEBHOOK_BASE", "").strip().rstrip("/")
-    if base:
-        path = f"/{token}"
-        url = f"{base}{path}"
-        log.info(f"Webhook at {url}")
-        app.web_app.add_routes([web.post("/center_mark", center_mark_handler)])
-        app.web_app["application"] = app
-        app.run_webhook(listen="0.0.0.0", port=int(os.getenv("PORT", "8080")),
-                        url_path=path, webhook_url=url, drop_pending_updates=True)
-    else:
-        log.info("Polling mode")
-        app.run_polling(drop_pending_updates=True, close_loop=False)
+    aio = web.Application()
+    aio["application"] = app
+
+    # Telegram webhook
+    aio.router.add_post(f"/{token}", app.webhook_handler())
+
+    # Служебный маршрут
+    aio.router.add_post("/center_mark", center_mark_handler)
+
+    # Запуск сервера
+    web.run_app(
+        aio,
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "8080")),
+    )
 
 if __name__ == "__main__":
     main()
-
