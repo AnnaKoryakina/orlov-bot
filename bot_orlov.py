@@ -208,16 +208,24 @@ async def reply_wrong(update: Update, context: ContextTypes.DEFAULT_TYPE, *pools
         merged = ["Мимо. Попробуй внимательнее."]
     await update.message.reply_text(_pick(merged, used))
 
-# ---------- Финальная проверка (через 3 минуты) через asyncio ----------
-async def schedule_final_check(bot, chat_id: int, ctx_data: dict):
-    await asyncio.sleep(180)
-    if ctx_data.get("center_ok"):
+# --- Финальная проверка через PTB JobQueue ---
+FINAL_DELAY = int(os.getenv("FINAL_DELAY_SEC", "180"))
+
+async def final_check_job(context: ContextTypes.DEFAULT_TYPE):
+    """
+    Отправляет финал через FINAL_DELAY секунд.
+    Берём флаг center_ok из application.chat_data для нужного chat_id.
+    """
+    chat_id = context.job.data["chat_id"]
+    center_ok = bool(context.application.chat_data.get(chat_id, {}).get("center_ok"))
+
+    if center_ok:
         text = ("На два фронта играете? Знаете, агенты, как говорится — "
                 "на двух стульев… двух зайцев… и всё такое.\n"
                 "Это была проверка. Мы пересмотрим ваш допуск к программе.")
     else:
         text = "Красотки! Это была проверка и вы её прошли. Нельзя вестись на провокации."
-    await bot.send_message(chat_id=chat_id, text=text)
+    await context.bot.send_message(chat_id=chat_id, text=text)
 
 # ---------- Команды ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -348,8 +356,16 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if stage == 6:
         if is_internal(t):
             await update.message.reply_text("Ответ зафиксирован системой. Идёт проверка. Ждите.")
-            ctx_snapshot = dict(context.chat_data)  # возьмём флаг center_ok
-            asyncio.create_task(schedule_final_check(context.bot, update.effective_chat.id, ctx_snapshot))
+            # было:
+# ctx_snapshot = dict(context.chat_data)
+# asyncio.create_task(schedule_final_check(context.bot, update.effective_chat.id, ctx_snapshot))
+
+# стало:
+context.application.job_queue.run_once(
+    final_check_job,
+    when=FINAL_DELAY,
+    data={"chat_id": update.effective_chat.id}
+)
             set_stage(context, 7)
         else:
             await reply_wrong(update, context, TEASE_WRONG, TEASE_CHATTER)
@@ -455,3 +471,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
