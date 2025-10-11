@@ -370,6 +370,19 @@ def main():
 
     # Маршрут служебной метки от Центра
     aio.router.add_post("/center_mark", center_mark_handler)
+    # --- управление жизненным циклом PTB через aiohttp ---
+async def _on_startup(aio_app: web.Application):
+    ptb_app = aio_app["application"]
+    await ptb_app.initialize()   # запустит post_init и подготовит handlers
+    await ptb_app.start()        # запустит бота (network, dispatcher)
+
+async def _on_cleanup(aio_app: web.Application):
+    ptb_app = aio_app["application"]
+    await ptb_app.stop()
+    await ptb_app.shutdown()
+
+aio.on_startup.append(_on_startup)
+aio.on_cleanup.append(_on_cleanup)
 
     # Запуск aiohttp-сервера
     web.run_app(aio, host="0.0.0.0", port=int(os.getenv("PORT", "8080")))
@@ -377,3 +390,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
