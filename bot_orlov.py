@@ -312,8 +312,9 @@ async def center_mark_handler(request):
 
     app.bot_data.setdefault("center_ok_users", set()).add(user_id)
     return web.json_response({"ok": True})
+    
 
-# NEW: универсальный обработчик Telegram-вебхука (без внутренних методов PTB)
+# 🔹 Универсальный обработчик Telegram-вебхука
 async def telegram_webhook(request: web.Request):
     app = request.app["application"]          # PTB Application
     try:
@@ -330,6 +331,8 @@ async def telegram_webhook(request: web.Request):
     await app.process_update(update)
     return web.Response(text="OK")
 
+
+# 🔹 post_init — установка вебхука на старте
 async def _post_init(app):
     base = os.getenv("WEBHOOK_BASE", "").rstrip("/")
     token = app.bot.token
@@ -339,12 +342,14 @@ async def _post_init(app):
     await app.bot.set_webhook(url, allowed_updates=["message"])
     logging.getLogger("orlov").info(f"Webhook set to {url}")
 
+
+# 🔹 Точка входа — запуск приложения
 def main():
     token = os.environ.get("BOT_TOKEN")
     if not token:
         raise RuntimeError("BOT_TOKEN не задан.")
 
-    # ⬇️ Здесь добавляем post_init в ApplicationBuilder
+    # Создаём приложение и прикручиваем post_init
     app = (
         ApplicationBuilder()
         .token(token)
@@ -352,46 +357,23 @@ def main():
         .build()
     )
 
-    # дальше как было
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))async def _post_init(app):
-    base = os.getenv("WEBHOOK_BASE", "").rstrip("/")
-    token = app.bot.token
-    url = f"{base}/{token}"
-    # сбрасываем старый и устанавливаем новый вебхук
-    await app.bot.delete_webhook(drop_pending_updates=True)
-    await app.bot.set_webhook(url, allowed_updates=["message"])
-    logging.getLogger("orlov").info(f"Webhook set to {url}")
-
-def main():
-    token = os.environ.get("BOT_TOKEN")
-    if not token:
-        raise RuntimeError("BOT_TOKEN не задан.")
-
-    # ⬇️ Здесь добавляем post_init в ApplicationBuilder
-    app = (
-        ApplicationBuilder()
-        .token(token)
-        .post_init(_post_init)
-        .build()
-    )
-    # твои хендлеры
+    # Обработчики команд и текстов
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-    # AIOHTTP-приложение
+    # Создаём aiohttp-приложение
     aio = web.Application()
     aio["application"] = app
 
-    # 1) Telegram вебхук — путь /<BOT_TOKEN>
+    # Маршрут Telegram webhook
     aio.router.add_post(f"/{token}", telegram_webhook)
 
-    # 2) Служебный маршрут — метка от Центра
+    # Маршрут служебной метки от Центра
     aio.router.add_post("/center_mark", center_mark_handler)
 
-    # 3) Запуск HTTP-сервера
+    # Запуск aiohttp-сервера
     web.run_app(aio, host="0.0.0.0", port=int(os.getenv("PORT", "8080")))
+
 
 if __name__ == "__main__":
     main()
-
