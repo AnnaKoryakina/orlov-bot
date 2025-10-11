@@ -361,34 +361,31 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-    # Создаём aiohttp-приложение
+        # AIOHTTP сервер
     aio = web.Application()
     aio["application"] = app
 
-    # Маршрут Telegram webhook
+    # маршруты
     aio.router.add_post(f"/{token}", telegram_webhook)
-
-    # Маршрут служебной метки от Центра
     aio.router.add_post("/center_mark", center_mark_handler)
+
     # --- управление жизненным циклом PTB через aiohttp ---
-async def _on_startup(aio_app: web.Application):
-    ptb_app = aio_app["application"]
-    await ptb_app.initialize()   # запустит post_init и подготовит handlers
-    await ptb_app.start()        # запустит бота (network, dispatcher)
+    async def _on_startup(aio_app: web.Application):
+        ptb_app = aio_app["application"]
+        await ptb_app.initialize()
+        await ptb_app.start()
 
-async def _on_cleanup(aio_app: web.Application):
-    ptb_app = aio_app["application"]
-    await ptb_app.stop()
-    await ptb_app.shutdown()
+    async def _on_cleanup(aio_app: web.Application):
+        ptb_app = aio_app["application"]
+        await ptb_app.stop()
+        await ptb_app.shutdown()
 
-aio.on_startup.append(_on_startup)
-aio.on_cleanup.append(_on_cleanup)
+    aio.on_startup.append(_on_startup)
+    aio.on_cleanup.append(_on_cleanup)
 
     # Запуск aiohttp-сервера
-web.run_app(aio, host="0.0.0.0", port=int(os.getenv("PORT", "8080")))
+    web.run_app(aio, host="0.0.0.0", port=int(os.getenv("PORT", "8080")))
 
 
 if __name__ == "__main__":
     main()
-
-
