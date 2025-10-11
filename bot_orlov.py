@@ -293,6 +293,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- AIOHTTP запуск на PTB 21 ---
 from aiohttp import web
+from telegram import Update
 
 async def center_mark_handler(request):
     app = request.app["application"]
@@ -312,32 +313,46 @@ async def center_mark_handler(request):
     app.bot_data.setdefault("center_ok_users", set()).add(user_id)
     return web.json_response({"ok": True})
 
+# NEW: универсальный обработчик Telegram-вебхука (без внутренних методов PTB)
+async def telegram_webhook(request: web.Request):
+    app = request.app["application"]          # PTB Application
+    try:
+        data = await request.json()
+    except Exception:
+        return web.Response(status=400)
+
+    try:
+        update = Update.de_json(data, app.bot)
+    except Exception:
+        return web.Response(status=400)
+
+    # Передаём апдейт в PTB
+    await app.process_update(update)
+    return web.Response(text="OK")
+
 def main():
     token = os.environ.get("BOT_TOKEN")
     if not token:
         raise RuntimeError("BOT_TOKEN не задан.")
+
     app = ApplicationBuilder().token(token).build()
 
-    # Хендлеры бота
+    # твои хендлеры
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
+    # AIOHTTP-приложение
     aio = web.Application()
     aio["application"] = app
 
-    # Telegram webhook
-    aio.router.add_post(f"/{token}", app.telegram_webhook_handler())
+    # 1) Telegram вебхук — путь /<BOT_TOKEN>
+    aio.router.add_post(f"/{token}", telegram_webhook)
 
-    # Служебный маршрут
+    # 2) Служебный маршрут — метка от Центра
     aio.router.add_post("/center_mark", center_mark_handler)
 
-    # Запуск сервера
-    web.run_app(
-        aio,
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", "8080")),
-    )
+    # 3) Запуск HTTP-сервера
+    web.run_app(aio, host="0.0.0.0", port=int(os.getenv("PORT", "8080")))
 
 if __name__ == "__main__":
     main()
-
